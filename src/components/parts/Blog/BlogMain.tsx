@@ -5,7 +5,7 @@ import BlogCard from "./BlogCard";
 import SkeletonCard from "./SkeletonCard";
 import { AlertCircle, ExternalLink, RefreshCcw } from "lucide-react";
 
-const USER = "larrylambert269";
+const USER = "leafclutchTechnologies";
 
 const App: React.FC = () => {
   const [posts, setPosts] = useState<MediumPost[]>([]);
@@ -24,7 +24,7 @@ const App: React.FC = () => {
       setError(
         err instanceof Error
           ? err.message
-          : "An error occurred while fetching posts"
+          : "An error occurred while fetching posts",
       );
     } finally {
       setLoading(false);
