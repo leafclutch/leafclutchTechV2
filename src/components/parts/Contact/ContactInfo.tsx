@@ -94,7 +94,7 @@ const ContactInfo: React.FC = () => {
             <h3 className="text-xl font-bold text-primary">Call Us</h3>
             <div className="text-muted-foreground space-y-0.5 font-medium">
               <p>+977-9766715768</p>
-              <p>+977-9766715666</p>
+              <p>+977-9766715669</p>
             </div>
           </div>
         </motion.div>

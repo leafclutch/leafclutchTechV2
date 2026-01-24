@@ -39,7 +39,7 @@ const FinalCTA: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Box 2: Contact - Siddhartha */}
           <a
-            href="tel:+9779766722920"
+            href="tel:+9779766715768"
             className="group flex items-center gap-4 p-5 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl transition-all duration-300 hover:bg-white/10 hover:border-mint/30"
           >
             <div className="w-10 h-10 bg-primary/40 rounded-xl flex items-center justify-center border border-white/5 text-mint shrink-0 group-hover:scale-110 transition-transform">
@@ -57,7 +57,7 @@ const FinalCTA: React.FC = () => {
 
           {/* Box 3: Contact - Shubham */}
           <a
-            href="tel:+9779867420560"
+            href="tel:+9779766715669"
             className="group flex items-center gap-4 p-5 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl transition-all duration-300 hover:bg-white/10 hover:border-accent/30"
           >
             <div className="w-10 h-10 bg-primary/40 rounded-xl flex items-center justify-center border border-white/5 text-accent shrink-0 group-hover:scale-110 transition-transform">
@@ -68,7 +68,7 @@ const FinalCTA: React.FC = () => {
                 Shubham Kr. Deo
               </h3>
               <p className="text-white/40 font-black text-sm tracking-[0.05rem] self-start">
-                +977-9766715666
+                +977-9766715669
               </p>
             </div>
           </a>
