@@ -14,9 +14,10 @@ import {
   ChevronRight,
 } from "lucide-react";
 import {
-  memberApi,
-  type MemberResponse,
-} from "../../../services/memberService";
+  certificateApi,
+} from "../../../services/certificateService";
+import type { MemberResponse } from "../../../services/memberService"
+
 
 interface Intern {
   id: string;
@@ -68,18 +69,19 @@ const App = () => {
   const [searchVal, setSearchVal] = useState<string>("");
   const [allInterns, setAllInterns] = useState<Intern[]>([]);
 
-  useEffect(() => {
-    const loadInterns = async () => {
-      try {
-        const data = await memberApi.getInterns();
-        const mappedData = mapInternData(data);
-        setAllInterns(mappedData);
-      } catch (err) {
-        console.error("Failed to fetch interns", err);
-      }
-    };
-    loadInterns();
-  }, []);
+ useEffect(() => {
+  const loadData = async () => {
+    setStatus("searching"); 
+    const data = await certificateApi.getAllMembersForVerify();
+    
+    const internsOnly = data.filter(m => m.role === "INTERN");
+    
+    const mapped = mapInternData(internsOnly);
+    setAllInterns(mapped);
+    setStatus("idle");
+  };
+  loadData();
+}, []);
 
   const handleSearch = useCallback(
     (e: FormEvent) => {
