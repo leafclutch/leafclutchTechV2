@@ -12,6 +12,7 @@ export interface TrainingResponse {
   photo_url: string;
   base_price: number;
   effective_price: number;
+  enroll_from_price: number;
   benefits: string[];
   mentors: Mentor[];
   created_at: string;
