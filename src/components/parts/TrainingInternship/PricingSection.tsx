@@ -249,7 +249,7 @@ const PricingSection: React.FC = () => {
                           <Tag className="w-4 h-4" />
                           <span className="text-sm font-black italic">
                             Enroll with just NPR{" "}
-                            {formatPrice(train.effective_price)}
+                             {formatPrice(train.enroll_from_price)}
                           </span>
                         </div>
                       </div>
