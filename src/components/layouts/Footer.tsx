@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { TbBrandTiktok, TbBrandDiscord } from "react-icons/tb";
 import { serviceApi } from "../../services/serviceService";
-import { trainingApi } from "../../services/trainingService";
+// import { trainingApi } from "../../services/trainingService";
 
 // Types
 type ServiceItem = Awaited<ReturnType<typeof serviceApi.getAll>>[number];
@@ -71,9 +71,9 @@ export function Footer() {
   useEffect(() => {
     const fetchFooterContent = async () => {
       try {
-        const [sRes, tRes] = await Promise.all([
+        const [sRes] = await Promise.all([
           serviceApi.getAll(),
-          trainingApi.getAll(),
+          // trainingApi.getAll(),
         ]);
 
         const services = Array.isArray(sRes) ? sRes : [];
