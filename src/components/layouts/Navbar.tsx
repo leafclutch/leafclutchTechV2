@@ -1,11 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import {
-  Menu,
-  X,
-  ChevronDown,
-  MessageSquare,
-} from "lucide-react";
+import { Menu, X, ChevronDown, MessageSquare } from "lucide-react";
 import { LuCircleUserRound } from "react-icons/lu";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "../ui/button";
@@ -36,7 +31,7 @@ const staticServices = [
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  
+
   // Initialize with static data so the UI is never empty
   const [dynamicServices, setDynamicServices] = useState(staticServices);
 
@@ -46,10 +41,14 @@ export function Navbar() {
     const getNavbarData = async () => {
       try {
         const data = await serviceApi.getAll();
-        
+
         // Map API data using IDs for the href
         const mappedApiServices = data
-          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          .sort(
+            (a, b) =>
+              new Date(a.created_at).getTime() -
+              new Date(b.created_at).getTime(),
+          )
           .map((s) => ({
             name: s.title,
             href: `/services/${s.id}`,
@@ -57,15 +56,20 @@ export function Navbar() {
 
         // MERGE LOGIC: Keep static ones, add API ones only if the name is unique
         const uniqueApiServices = mappedApiServices.filter(
-          (apiItem) => !staticServices.some(
-            (staticItem) => staticItem.name.toLowerCase() === apiItem.name.toLowerCase()
-          )
+          (apiItem) =>
+            !staticServices.some(
+              (staticItem) =>
+                staticItem.name.toLowerCase() === apiItem.name.toLowerCase(),
+            ),
         );
 
         // Update state in background
         setDynamicServices([...staticServices, ...uniqueApiServices]);
       } catch (err) {
-        console.error("Background sync failed, staying with static services:", err);
+        console.error(
+          "Background sync failed, staying with static services:",
+          err,
+        );
       }
     };
 
@@ -77,7 +81,7 @@ export function Navbar() {
     { name: "About Us", href: "/about" },
     {
       name: "Training & Internship",
-      href: "https://ed-tech-leafclutch.vercel.app/courses",
+      href: "https://www.leafclutchtech.com.np/courses",
       target: "_blank",
     },
     { name: "Services", href: "/services", dropdown: dynamicServices },
@@ -86,7 +90,9 @@ export function Navbar() {
   ];
 
   const isActive = (href: string) =>
-    href === "/" ? location.pathname === "/" : location.pathname.startsWith(href);
+    href === "/"
+      ? location.pathname === "/"
+      : location.pathname.startsWith(href);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-card backdrop-blur-lg">
@@ -94,7 +100,11 @@ export function Navbar() {
         <div className="flex h-20 items-center justify-between">
           {/* Logo */}
           <Link to="/">
-            <img src="/logo-new.png" alt="Leafclutch Logo" className="h-14 lg:h-10 xl:h-14" />
+            <img
+              src="/logo-new.png"
+              alt="Leafclutch Logo"
+              className="h-14 lg:h-10 xl:h-14"
+            />
           </Link>
 
           {/* -------- Desktop Navigation -------- */}
@@ -109,7 +119,9 @@ export function Navbar() {
                 >
                   <button
                     className={`nav-link flex items-center gap-1 rounded-md px-3 py-2 ${
-                      location.pathname.startsWith(link.href) ? "text-primary font-bold active" : "font-semibold"
+                      location.pathname.startsWith(link.href)
+                        ? "text-primary font-bold active"
+                        : "font-semibold"
                     }`}
                   >
                     {link.name}
@@ -122,7 +134,7 @@ export function Navbar() {
 
                   <AnimatePresence>
                     {openDropdown === link.name && (
-                      <motion.div 
+                      <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 10 }}
@@ -160,25 +172,39 @@ export function Navbar() {
                   key={link.name}
                   to={link.href}
                   className={`nav-link rounded-md px-3 py-2 ${isActive(link.href) ? "text-primary font-bold active" : "font-semibold"}`}
-                  onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                  onClick={() =>
+                    window.scrollTo({ top: 0, behavior: "smooth" })
+                  }
                 >
                   {link.name}
                 </Link>
-              )
+              ),
             )}
           </div>
 
           {/* Right section */}
           <div className="flex items-center gap-2 md:gap-10">
             <div className="hidden lg:flex space-x-2 items-center">
-              <Link to="/contact" className="flex items-center" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-                <Button variant="outline" className="xl:!h-12 md:!h-10 lg:text-xs min-[1200px]:text-sm lg:gap-[1vw] xl:text-base xl:gap-[0.5vw]">
+              <Link
+                to="/contact"
+                className="flex items-center"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              >
+                <Button
+                  variant="outline"
+                  className="xl:!h-12 md:!h-10 lg:text-xs min-[1200px]:text-sm lg:gap-[1vw] xl:text-base xl:gap-[0.5vw]"
+                >
                   <MessageSquare className="xl:!w-6 xl:!h-6 md:!w-5 md:!h-5" />
                   Contact
                 </Button>
               </Link>
 
-              <a href="https://leafclutch-dashboard.vercel.app/" target="_blank" rel="noopener noreferrer" className="flex items-center">
+              <a
+                href="https://leafclutch-dashboard.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center"
+              >
                 <Button className="xl:!h-12 md:!h-10 lg:text-xs min-[1200px]:text-sm lg:gap-[1vw] xl:text-base xl:gap-[0.5vw]">
                   <LuCircleUserRound className="xl:!w-7 xl:!h-7 md:!w-6 md:!h-6" />
                   Login
@@ -187,8 +213,17 @@ export function Navbar() {
             </div>
 
             {/* Mobile toggle */}
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-              {mobileMenuOpen ? <X className="!h-6 !w-6" /> : <Menu className="!h-6 !w-6" />}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? (
+                <X className="!h-6 !w-6" />
+              ) : (
+                <Menu className="!h-6 !w-6" />
+              )}
             </Button>
           </div>
         </div>
@@ -213,10 +248,14 @@ export function Navbar() {
                         <>
                           <button
                             className="flex w-full items-center justify-between rounded-md px-3 py-2 text-base font-medium"
-                            onClick={() => setOpenDropdown(isDropdownOpen ? null : link.name)}
+                            onClick={() =>
+                              setOpenDropdown(isDropdownOpen ? null : link.name)
+                            }
                           >
                             <span>{link.name}</span>
-                            <ChevronDown className={`h-4 w-4 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
+                            <ChevronDown
+                              className={`h-4 w-4 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
+                            />
                           </button>
                           {isDropdownOpen && (
                             <div className="ml-4 mt-1 flex flex-col gap-1 border-l pl-3">
@@ -225,7 +264,10 @@ export function Navbar() {
                                   key={item.name}
                                   to={item.href}
                                   className="rounded-md px-3 py-2 text-sm text-muted-foreground"
-                                  onClick={() => { setMobileMenuOpen(false); window.scrollTo(0, 0); }}
+                                  onClick={() => {
+                                    setMobileMenuOpen(false);
+                                    window.scrollTo(0, 0);
+                                  }}
                                 >
                                   {item.name}
                                 </Link>
@@ -237,7 +279,10 @@ export function Navbar() {
                         <Link
                           to={link.href}
                           className="flex w-full items-center rounded-md px-3 py-2 text-base font-medium"
-                          onClick={() => { setMobileMenuOpen(false); window.scrollTo(0, 0); }}
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            window.scrollTo(0, 0);
+                          }}
                         >
                           {link.name}
                         </Link>
