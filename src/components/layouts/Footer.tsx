@@ -23,7 +23,7 @@ const company = [
   { name: "About Us", href: "/about" },
   {
     name: "Training & Internship",
-    href: "https://ed-tech-leafclutch.vercel.app/courses",
+    href: "https://www.leafclutchtech.com.np/courses",
     target: "_blank",
   },
   { name: "Services", href: "/services/all-services" },
@@ -48,23 +48,50 @@ const staticServices = [
 ];
 
 const socials = [
-  { icon: Facebook, href: "https://www.facebook.com/profile.php?id=61584902195796", label: "Facebook" },
+  {
+    icon: Facebook,
+    href: "https://www.facebook.com/profile.php?id=61584902195796",
+    label: "Facebook",
+  },
   { icon: Twitter, href: "https://x.com/", label: "Twitter" },
-  { icon: Linkedin, href: "https://www.linkedin.com/company/leafclutch-technologies/", label: "LinkedIn" },
-  { icon: Instagram, href: "https://www.instagram.com/leafclutch.technologies/", label: "Instagram" },
-  { icon: Youtube, href: "https://www.youtube.com/@LeafclutchTechnologies", label: "YouTube" },
-  { icon: TbBrandTiktok, href: "https://www.tiktok.com/@leafclutchtechnologies1", label: "Tiktok" },
-  { icon: TbBrandDiscord, href: "https://discord.gg/4aDwcMZBPq", label: "Discord" },
+  {
+    icon: Linkedin,
+    href: "https://www.linkedin.com/company/leafclutch-technologies/",
+    label: "LinkedIn",
+  },
+  {
+    icon: Instagram,
+    href: "https://www.instagram.com/leafclutch.technologies/",
+    label: "Instagram",
+  },
+  {
+    icon: Youtube,
+    href: "https://www.youtube.com/@LeafclutchTechnologies",
+    label: "YouTube",
+  },
+  {
+    icon: TbBrandTiktok,
+    href: "https://www.tiktok.com/@leafclutchtechnologies1",
+    label: "Tiktok",
+  },
+  {
+    icon: TbBrandDiscord,
+    href: "https://discord.gg/4aDwcMZBPq",
+    label: "Discord",
+  },
 ];
 
 export function Footer() {
   // 1. Initialize immediately with static data (using slugs as IDs)
   const [dynamicServices, setDynamicServices] = useState<ServiceItem[]>(
-    staticServices.map(s => ({
-      id: s.slug, 
-      title: s.name,
-      created_at: new Date(0).toISOString(),
-    } as ServiceItem))
+    staticServices.map(
+      (s) =>
+        ({
+          id: s.slug,
+          title: s.name,
+          created_at: new Date(0).toISOString(),
+        }) as ServiceItem,
+    ),
   );
   // const [dynamicTrainings, setDynamicTrainings] = useState<TrainingItem[]>([]);
 
@@ -82,11 +109,13 @@ export function Footer() {
         // 2. Logic: Keep static slugs and only append new API items
         setDynamicServices((prevStatic) => {
           // Normalize static titles for comparison
-          const staticTitles = new Set(prevStatic.map(s => s.title.toLowerCase().trim()));
-          
+          const staticTitles = new Set(
+            prevStatic.map((s) => s.title.toLowerCase().trim()),
+          );
+
           // Filter API response: only keep items that are NOT in the static list
           const newApiItems = services.filter(
-            apiItem => !staticTitles.has(apiItem.title.toLowerCase().trim())
+            (apiItem) => !staticTitles.has(apiItem.title.toLowerCase().trim()),
           );
 
           // Return the original static items (keeping their slugs) + brand new items (keeping their IDs)
@@ -117,10 +146,16 @@ export function Footer() {
               training, and digital transformation services.
             </p>
             <div className="mt-6 space-y-3">
-              <a href="mailto:info@leafclutchtech.com.np" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+              <a
+                href="mailto:info@leafclutchtech.com.np"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              >
                 <Mail className="h-4 w-4" /> info@leafclutchtech.com.np
               </a>
-              <a href="tel:+9779766715768" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+              <a
+                href="tel:+9779766715768"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              >
                 <Phone className="h-4 w-4" /> +977-9766715768
               </a>
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -149,11 +184,20 @@ export function Footer() {
               {company.map((link) => (
                 <li key={link.name}>
                   {link.target === "_blank" ? (
-                    <a href={link.href} target={link.target} rel="noopener noreferrer" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                    <a
+                      href={link.href}
+                      target={link.target}
+                      rel="noopener noreferrer"
+                      className="text-sm text-muted-foreground transition-colors hover:text-primary"
+                    >
                       {link.name}
                     </a>
                   ) : (
-                    <Link to={link.href} className="text-sm text-muted-foreground transition-colors hover:text-primary" onClick={scrollToTop}>
+                    <Link
+                      to={link.href}
+                      className="text-sm text-muted-foreground transition-colors hover:text-primary"
+                      onClick={scrollToTop}
+                    >
                       {link.name}
                     </Link>
                   )}
@@ -164,7 +208,9 @@ export function Footer() {
 
           {/* Services Column */}
           <div>
-            <h3 className="text-base font-semibold text-foreground">Services</h3>
+            <h3 className="text-base font-semibold text-foreground">
+              Services
+            </h3>
             <ul className="mt-4 space-y-3">
               {dynamicServices.map((item) => (
                 <li key={item.title}>
@@ -182,11 +228,17 @@ export function Footer() {
 
           {/* Resources Column */}
           <div>
-            <h3 className="text-base font-semibold text-foreground">Resources</h3>
+            <h3 className="text-base font-semibold text-foreground">
+              Resources
+            </h3>
             <ul className="mt-4 space-y-3">
               {resources.map((item) => (
                 <li key={item.name}>
-                  <Link to={item.href} className="text-sm text-muted-foreground transition-colors hover:text-primary" onClick={scrollToTop}>
+                  <Link
+                    to={item.href}
+                    className="text-sm text-muted-foreground transition-colors hover:text-primary"
+                    onClick={scrollToTop}
+                  >
                     {item.name}
                   </Link>
                 </li>
@@ -198,12 +250,30 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="max-w-[88rem] mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 md:flex-row">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Leafclutch Technologies. All rights reserved.
+            © {new Date().getFullYear()} Leafclutch Technologies. All rights
+            reserved.
           </p>
           <div className="flex gap-6">
-            <Link to="/privacy" onClick={scrollToTop} className="text-sm text-muted-foreground hover:text-primary">Privacy Policy</Link>
-            <Link to="/terms" onClick={scrollToTop} className="text-sm text-muted-foreground hover:text-primary">Terms of Service</Link>
-            <a href="https://leafclutch-dashboard.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary">
+            <Link
+              to="/privacy"
+              onClick={scrollToTop}
+              className="text-sm text-muted-foreground hover:text-primary"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              to="/terms"
+              onClick={scrollToTop}
+              className="text-sm text-muted-foreground hover:text-primary"
+            >
+              Terms of Service
+            </Link>
+            <a
+              href="https://leafclutchtechnologies.com.np/admin/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-muted-foreground hover:text-primary"
+            >
               Admin
             </a>
           </div>
