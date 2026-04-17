@@ -1,4 +1,4 @@
-import axiosInstance from "../api/axios";
+import { supabase } from "../lib/supabase";
 
 export interface Mentor {
   name: string;
@@ -20,25 +20,24 @@ export interface TrainingResponse {
 }
 
 export const trainingApi = {
-  getAll: async (page = 1, pageSize = 20): Promise<TrainingResponse[]> => {
-    try {
-      const res = await axiosInstance.get("/admin/trainings/", {
-        params: { page, page_size: pageSize },
-      });
-
-      if (res.data && res.data.items) {
-        return res.data.items;
-      }
-
-      return Array.isArray(res.data) ? res.data : [];
-    } catch (error) {
-      console.error("Training API Error:", error);
-      return [];
-    }
+  getAll: async (): Promise<TrainingResponse[]> => {
+    const { data, error } = await supabase
+      .from("courses")
+      .select("id, title, description, photo_url, base_price, effective_price, enroll_from_price, benefits, created_at, updated_at")
+      .eq("is_visible", true)
+      .order("display_order", { ascending: true });
+    if (error) { console.error("Trainings fetch error:", error); return []; }
+    // courses table doesn't embed mentors — return empty array to keep interface compatible
+    return (data ?? []).map(c => ({ ...c, mentors: [] })) as TrainingResponse[];
   },
 
-  getById: async (id: string): Promise<TrainingResponse> => {
-    const res = await axiosInstance.get(`/admin/trainings/${id}`);
-    return res.data;
+  getById: async (id: string): Promise<TrainingResponse | null> => {
+    const { data, error } = await supabase
+      .from("courses")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) { console.error("Training fetch error:", error); return null; }
+    return { ...data, mentors: [] } as TrainingResponse;
   },
 };

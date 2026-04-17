@@ -1,4 +1,4 @@
-import axiosInstance from "../api/axios";
+import { supabase } from "../lib/supabase";
 
 export interface OpportunityResponse {
   id: string;
@@ -19,12 +19,12 @@ export interface OpportunityResponse {
 
 export const opportunityApi = {
   getAll: async (): Promise<OpportunityResponse[]> => {
-    try {
-      const res = await axiosInstance.get("/api/admin/opportunities");
-      return Array.isArray(res.data) ? res.data : [];
-    } catch (error) {
-      console.error("Opportunity API Error:", error);
-      return [];
-    }
+    const { data, error } = await supabase
+      .from("opportunities")
+      .select("id, title, description, location, type, job_details, internship_details, requirements")
+      .eq("is_visible", true)
+      .order("created_at", { ascending: false });
+    if (error) { console.error("Opportunities fetch error:", error); return []; }
+    return (data as OpportunityResponse[]) ?? [];
   },
 };

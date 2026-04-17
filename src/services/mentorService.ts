@@ -1,4 +1,4 @@
-import axiosInstance from "../api/axios";
+import { supabase } from "../lib/supabase";
 
 export interface MentorResponse {
   id: string;
@@ -8,20 +8,23 @@ export interface MentorResponse {
 }
 
 export const mentorApi = {
-  // GET /admin/mentors/
   getAll: async (): Promise<MentorResponse[]> => {
-    try {
-      const res = await axiosInstance.get<MentorResponse[]>("/admin/mentors/");
-      return res.data;
-    } catch (error) {
-      console.error("Mentor API Error:", error);
-      return [];
-    }
+    const { data, error } = await supabase
+      .from("mentors")
+      .select("id, name, photo_url, specialization")
+      .eq("is_visible", true)
+      .order("created_at", { ascending: true });
+    if (error) { console.error("Mentor fetch error:", error); return []; }
+    return data ?? [];
   },
 
- 
-  getById: async (id: string): Promise<MentorResponse> => {
-    const res = await axiosInstance.get<MentorResponse>(`/admin/mentors/${id}`);
-    return res.data;
+  getById: async (id: string): Promise<MentorResponse | null> => {
+    const { data, error } = await supabase
+      .from("mentors")
+      .select("id, name, photo_url, specialization")
+      .eq("id", id)
+      .single();
+    if (error) { console.error("Mentor fetch error:", error); return null; }
+    return data;
   },
 };
