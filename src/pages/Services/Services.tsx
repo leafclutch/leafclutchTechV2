@@ -70,7 +70,7 @@ export default function Services() {
 
       // 2. FALLBACK TO API (If slug is an ID)
       try {
-        const data: ServiceResponse = await serviceApi.getById(slug);
+        const data: ServiceResponse | null = await serviceApi.getById(slug);
 
         if (data) {
           setService({

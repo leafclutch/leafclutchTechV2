@@ -26,13 +26,18 @@ const staticToServiceResponse = (
 ): ServiceItem => ({
   id: `static-${index}`,
   title: s.title,
+  slug: s.slug,
   description: s.description,
+  short_description: "",
   photo_url: "",
+  lottie_url: "",
   created_at: new Date(0).toISOString(),
   techs: [],
   offerings: [],
+  features: [],
   base_price: "",
   effective_price: "",
+  display_order: index,
   staticHref: s.slug,
 });
 
