@@ -57,17 +57,17 @@ export default function VerifyCertificateMain() {
   function runSearch(term: string) {
     const t = term.toLowerCase().trim();
     if (!t) { setStatus("idle"); setResults([]); return; }
-    setStatus("searching");
     setSearchVal(t);
-    setTimeout(() => {
-      const matches = allMembers.filter(m =>
-        m.name.toLowerCase().includes(t) ||
-        m.id.toLowerCase().includes(t) ||
-        m.post.toLowerCase().includes(t)
-      );
-      setResults(matches);
-      setStatus(matches.length > 0 ? "found" : "not_found");
-    }, 300);
+    const words = t.split(/\s+/).filter(Boolean);
+    const matches = allMembers.filter(m => {
+      const nameLower = m.name.toLowerCase();
+      const idLower = m.id.toLowerCase();
+      const postLower = m.post.toLowerCase();
+      const allWordsInName = words.every(w => nameLower.includes(w));
+      return allWordsInName || idLower.includes(t) || postLower.includes(t);
+    });
+    setResults(matches);
+    setStatus(matches.length > 0 ? "found" : "not_found");
   }
 
   // Live search — fires after 2+ characters
