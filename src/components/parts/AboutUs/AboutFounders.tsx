@@ -56,7 +56,7 @@ const AboutFounders: React.FC = () => {
             >
               <img
                 src="https://i.postimg.cc/jdb4dkY2/siddhartha.jpg"
-                alt="Er. Siddhartha Pathak"
+                alt="Siddhartha Pathak"
                 className="w-full h-full object-cover"
               />
             </motion.div>
