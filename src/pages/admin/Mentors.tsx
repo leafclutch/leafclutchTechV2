@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import Toast from "../../components/admin/Toast";
 import { useRef } from "react";
+import { cacheInvalidate } from "../../lib/cache";
 
 interface Mentor {
   id: string;
@@ -23,7 +24,7 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-function MentorForm({ mentor, onClose, onSaved }: { mentor?: Mentor | null; onClose: () => void; onSaved: () => void }) {
+function MentorForm({ mentor, onClose, onSaved }: { mentor?: Mentor | null; onClose: () => void; onSaved: (saved: Mentor) => void }) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState(mentor?.photo_url ?? "");
   const [serverError, setServerError] = useState("");
@@ -48,6 +49,7 @@ function MentorForm({ mentor, onClose, onSaved }: { mentor?: Mentor | null; onCl
           photo_url = supabase.storage.from("profile-photos").getPublicUrl(path).data.publicUrl;
           await supabase.from("mentors").update({ photo_url }).eq("id", mentor.id);
         }
+        onSaved({ id: mentor.id, name: data.name, specialization: data.specialization, is_visible: data.is_visible, photo_url });
       } else {
         const { data: inserted, error } = await supabase.from("mentors").insert({ ...data }).select().single();
         if (error) throw error;
@@ -58,8 +60,8 @@ function MentorForm({ mentor, onClose, onSaved }: { mentor?: Mentor | null; onCl
           photo_url = supabase.storage.from("profile-photos").getPublicUrl(path).data.publicUrl;
           await supabase.from("mentors").update({ photo_url }).eq("id", inserted.id);
         }
+        onSaved({ id: inserted.id, name: data.name, specialization: data.specialization, is_visible: data.is_visible, photo_url });
       }
-      onSaved();
     } catch (e: unknown) {
       setServerError((e as { message: string }).message);
     }
@@ -116,37 +118,62 @@ export default function Mentors() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Mentor | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Mentor | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-  async function fetch() {
+  async function fetchMentors() {
     const { data } = await supabase.from("mentors").select("*").order("created_at", { ascending: false });
     setMentors(data ?? []);
     setLoading(false);
   }
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetchMentors(); }, []);
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    setDeleting(true);
-    await supabase.from("mentors").delete().eq("id", deleteTarget.id);
-    await fetch();
-    setToast({ message: "Mentor deleted", type: "success" });
+    const target = deleteTarget;
+    const snapshot = [...mentors];
+    setMentors(prev => prev.filter(m => m.id !== target.id));
     setDeleteTarget(null);
-    setDeleting(false);
+    setToast({ message: "Mentor deleted", type: "success" });
+    const { error } = await supabase.from("mentors").delete().eq("id", target.id);
+    if (error) {
+      setMentors(snapshot);
+      setToast({ message: "Delete failed: " + error.message, type: "error" });
+    } else {
+      cacheInvalidate("mentors:all");
+    }
   }
 
-  async function toggleVisibility(m: Mentor) {
-    await supabase.from("mentors").update({ is_visible: !m.is_visible }).eq("id", m.id);
-    await fetch();
+  function toggleVisibility(m: Mentor) {
+    const next = !m.is_visible;
+    setMentors(prev => prev.map(x => x.id === m.id ? { ...x, is_visible: next } : x));
+    supabase.from("mentors").update({ is_visible: next }).eq("id", m.id).then(({ error }) => {
+      if (error) {
+        setMentors(prev => prev.map(x => x.id === m.id ? { ...x, is_visible: m.is_visible } : x));
+        setToast({ message: "Failed to update visibility", type: "error" });
+      } else {
+        cacheInvalidate("mentors:all");
+      }
+    });
+  }
+
+  function handleSaved(saved: Mentor) {
+    setFormOpen(false);
+    setEditTarget(null);
+    setMentors(prev => {
+      const idx = prev.findIndex(m => m.id === saved.id);
+      if (idx >= 0) return prev.map(m => m.id === saved.id ? saved : m);
+      return [saved, ...prev];
+    });
+    setToast({ message: "Saved", type: "success" });
+    cacheInvalidate("mentors:all");
   }
 
   return (
     <div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      {deleteTarget && <ConfirmDialog title="Delete mentor" message={`Delete "${deleteTarget.name}"?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />}
-      {formOpen && <MentorForm mentor={editTarget} onClose={() => { setFormOpen(false); setEditTarget(null); }} onSaved={() => { setFormOpen(false); setEditTarget(null); fetch(); setToast({ message: "Saved", type: "success" }); }} />}
+      {deleteTarget && <ConfirmDialog title="Delete mentor" message={`Delete "${deleteTarget.name}"?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={false} />}
+      {formOpen && <MentorForm mentor={editTarget} onClose={() => { setFormOpen(false); setEditTarget(null); }} onSaved={handleSaved} />}
 
       <div className="flex items-center justify-between mb-6">
         <div>

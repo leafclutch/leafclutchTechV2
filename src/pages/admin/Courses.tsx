@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import Toast from "../../components/admin/Toast";
+import { cacheInvalidate } from "../../lib/cache";
 
 interface Course {
   id: string;
@@ -44,7 +45,7 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-function CourseForm({ course, onClose, onSaved }: { course?: Course | null; onClose: () => void; onSaved: () => void }) {
+function CourseForm({ course, onClose, onSaved }: { course?: Course | null; onClose: () => void; onSaved: (saved: Course) => void }) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState(course?.photo_url ?? "");
   const [serverError, setServerError] = useState("");
@@ -80,6 +81,7 @@ function CourseForm({ course, onClose, onSaved }: { course?: Course | null; onCl
         career_paths: toArr(data.career_paths), learning_outcomes: toArr(data.learning_outcomes),
       };
       let id = course?.id;
+      let photo_url = course?.photo_url ?? null;
       if (course) {
         const { error } = await supabase.from("courses").update(payload).eq("id", course.id);
         if (error) throw error;
@@ -92,10 +94,15 @@ function CourseForm({ course, onClose, onSaved }: { course?: Course | null; onCl
         const ext = photoFile.name.split(".").pop();
         const path = `course-${id}.${ext}`;
         await supabase.storage.from("assets").upload(path, photoFile, { upsert: true });
-        const url = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
-        await supabase.from("courses").update({ photo_url: url }).eq("id", id);
+        photo_url = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
+        await supabase.from("courses").update({ photo_url }).eq("id", id);
       }
-      onSaved();
+      onSaved({
+        id: id!, title: data.title, slug: data.slug, description: data.description || null,
+        photo_url, base_price: payload.base_price, effective_price: payload.effective_price,
+        duration: data.duration || null, level: data.level || null, mode: data.mode || null,
+        is_visible: data.is_visible, display_order: data.display_order,
+      });
     } catch (e: unknown) { setServerError((e as { message: string }).message); }
   }
 
@@ -196,7 +203,6 @@ export default function AdminCourses() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Course | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   async function fetchCourses() {
@@ -209,24 +215,50 @@ export default function AdminCourses() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    setDeleting(true);
-    await supabase.from("courses").delete().eq("id", deleteTarget.id);
-    await fetchCourses();
-    setToast({ message: "Course deleted", type: "success" });
+    const target = deleteTarget;
+    const snapshot = [...courses];
+    setCourses(prev => prev.filter(c => c.id !== target.id));
     setDeleteTarget(null);
-    setDeleting(false);
+    setToast({ message: "Course deleted", type: "success" });
+    const { error } = await supabase.from("courses").delete().eq("id", target.id);
+    if (error) {
+      setCourses(snapshot);
+      setToast({ message: "Delete failed: " + error.message, type: "error" });
+    } else {
+      cacheInvalidate("trainings:all");
+    }
   }
 
-  async function toggleVisibility(c: Course) {
-    await supabase.from("courses").update({ is_visible: !c.is_visible }).eq("id", c.id);
-    await fetchCourses();
+  function toggleVisibility(c: Course) {
+    const next = !c.is_visible;
+    setCourses(prev => prev.map(x => x.id === c.id ? { ...x, is_visible: next } : x));
+    supabase.from("courses").update({ is_visible: next }).eq("id", c.id).then(({ error }) => {
+      if (error) {
+        setCourses(prev => prev.map(x => x.id === c.id ? { ...x, is_visible: c.is_visible } : x));
+        setToast({ message: "Failed to update visibility", type: "error" });
+      } else {
+        cacheInvalidate("trainings:all");
+      }
+    });
+  }
+
+  function handleSaved(saved: Course) {
+    setFormOpen(false);
+    setEditTarget(null);
+    setCourses(prev => {
+      const idx = prev.findIndex(c => c.id === saved.id);
+      if (idx >= 0) return prev.map(c => c.id === saved.id ? saved : c);
+      return [...prev, saved];
+    });
+    setToast({ message: "Saved", type: "success" });
+    cacheInvalidate("trainings:all");
   }
 
   return (
     <div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      {deleteTarget && <ConfirmDialog title="Delete course" message={`Delete "${deleteTarget.title}"?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />}
-      {formOpen && <CourseForm course={editTarget} onClose={() => { setFormOpen(false); setEditTarget(null); }} onSaved={() => { setFormOpen(false); setEditTarget(null); fetchCourses(); setToast({ message: "Saved", type: "success" }); }} />}
+      {deleteTarget && <ConfirmDialog title="Delete course" message={`Delete "${deleteTarget.title}"?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={false} />}
+      {formOpen && <CourseForm course={editTarget} onClose={() => { setFormOpen(false); setEditTarget(null); }} onSaved={handleSaved} />}
 
       <div className="flex items-center justify-between mb-6">
         <div>

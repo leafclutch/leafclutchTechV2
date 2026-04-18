@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { cacheGet, cacheSet, preloadImages } from "../lib/cache";
 
 export interface MemberResponse {
   id: string;
@@ -19,6 +20,9 @@ const PUBLIC_FIELDS = "id, name, photo_url, position, role, start_date, end_date
 
 export const memberApi = {
   getTeams: async (): Promise<MemberResponse[]> => {
+    const cached = cacheGet<MemberResponse[]>("members:teams");
+    if (cached) return cached;
+
     const { data, error } = await supabase
       .from("members")
       .select(PUBLIC_FIELDS)
@@ -26,10 +30,16 @@ export const memberApi = {
       .eq("is_visible", true)
       .order("created_at", { ascending: true });
     if (error) { console.error("Teams fetch error:", error); return []; }
-    return (data as MemberResponse[]) ?? [];
+    const result = (data as MemberResponse[]) ?? [];
+    cacheSet("members:teams", result);
+    preloadImages(result.map((m) => m.photo_url));
+    return result;
   },
 
   getInterns: async (): Promise<MemberResponse[]> => {
+    const cached = cacheGet<MemberResponse[]>("members:interns");
+    if (cached) return cached;
+
     const { data, error } = await supabase
       .from("members")
       .select(PUBLIC_FIELDS)
@@ -37,6 +47,9 @@ export const memberApi = {
       .eq("is_visible", true)
       .order("created_at", { ascending: true });
     if (error) { console.error("Interns fetch error:", error); return []; }
-    return (data as MemberResponse[]) ?? [];
+    const result = (data as MemberResponse[]) ?? [];
+    cacheSet("members:interns", result);
+    preloadImages(result.map((m) => m.photo_url));
+    return result;
   },
 };

@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Search, Eye, EyeOff, ShieldCheck, ShieldOff } fro
 import MemberForm, { type MemberRow } from "./MemberForm";
 import ConfirmDialog from "./ConfirmDialog";
 import Toast from "./Toast";
+import { cacheInvalidate } from "../../lib/cache";
 
 interface Props {
   role: "TEAM" | "INTERN";
@@ -17,8 +18,9 @@ export default function MembersTable({ role, title }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<MemberRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MemberRow | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const cacheKey = role === "TEAM" ? "members:teams" : "members:interns";
 
   async function fetchMembers() {
     setLoading(true);
@@ -35,32 +37,61 @@ export default function MembersTable({ role, title }: Props) {
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    setDeleting(true);
-    if (deleteTarget.photo_url) {
-      const path = deleteTarget.photo_url.split("/profile-photos/")[1];
-      if (path) await supabase.storage.from("profile-photos").remove([path]);
+    const target = deleteTarget;
+    const snapshot = [...members];
+    setMembers(prev => prev.filter(m => m.id !== target.id));
+    setDeleteTarget(null);
+    setToast({ message: "Member deleted", type: "success" });
+    if (target.photo_url) {
+      const path = target.photo_url.split("/profile-photos/")[1];
+      if (path) supabase.storage.from("profile-photos").remove([path]);
     }
-    const { error } = await supabase.from("members").delete().eq("id", deleteTarget.id);
+    const { error } = await supabase.from("members").delete().eq("id", target.id);
     if (error) {
+      setMembers(snapshot);
       setToast({ message: error.message, type: "error" });
     } else {
-      await fetchMembers();
-      setToast({ message: "Member deleted", type: "success" });
+      cacheInvalidate(cacheKey);
     }
-    setDeleteTarget(null);
-    setDeleting(false);
   }
 
-  async function toggleVisibility(member: MemberRow) {
-    await supabase.from("members").update({ is_visible: !member.is_visible }).eq("id", member.id);
-    await fetchMembers();
+  function toggleVisibility(member: MemberRow) {
+    const next = !member.is_visible;
+    setMembers(prev => prev.map(m => m.id === member.id ? { ...m, is_visible: next } : m));
+    supabase.from("members").update({ is_visible: next }).eq("id", member.id).then(({ error }) => {
+      if (error) {
+        setMembers(prev => prev.map(m => m.id === member.id ? { ...m, is_visible: member.is_visible } : m));
+        setToast({ message: "Failed to update visibility", type: "error" });
+      } else {
+        cacheInvalidate(cacheKey);
+      }
+    });
   }
 
-  async function toggleVerified(member: MemberRow) {
+  function toggleVerified(member: MemberRow) {
     const next = !member.is_verified;
-    await supabase.from("members").update({ is_verified: next }).eq("id", member.id);
-    await fetchMembers();
-    setToast({ message: next ? `${member.name} marked as Verified` : `${member.name} unverified`, type: "success" });
+    setMembers(prev => prev.map(m => m.id === member.id ? { ...m, is_verified: next } : m));
+    supabase.from("members").update({ is_verified: next }).eq("id", member.id).then(({ error }) => {
+      if (error) {
+        setMembers(prev => prev.map(m => m.id === member.id ? { ...m, is_verified: member.is_verified } : m));
+        setToast({ message: "Failed to update verification", type: "error" });
+      } else {
+        setToast({ message: next ? `${member.name} marked as Verified` : `${member.name} unverified`, type: "success" });
+        cacheInvalidate(cacheKey);
+      }
+    });
+  }
+
+  function handleSaved(saved: MemberRow) {
+    setFormOpen(false);
+    setEditTarget(null);
+    setMembers(prev => {
+      const idx = prev.findIndex(m => m.id === saved.id);
+      if (idx >= 0) return prev.map(m => m.id === saved.id ? saved : m);
+      return [saved, ...prev];
+    });
+    setToast({ message: "Saved successfully", type: "success" });
+    cacheInvalidate(cacheKey);
   }
 
   const filtered = members.filter(m =>
@@ -77,7 +108,7 @@ export default function MembersTable({ role, title }: Props) {
           message={`Delete "${deleteTarget.name}"? All their documents will also be deleted.`}
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
-          loading={deleting}
+          loading={false}
         />
       )}
       {formOpen && (
@@ -85,7 +116,7 @@ export default function MembersTable({ role, title }: Props) {
           member={editTarget}
           defaultRole={role}
           onClose={() => { setFormOpen(false); setEditTarget(null); }}
-          onSaved={() => { setFormOpen(false); setEditTarget(null); fetchMembers(); setToast({ message: "Saved successfully", type: "success" }); }}
+          onSaved={handleSaved}
         />
       )}
 

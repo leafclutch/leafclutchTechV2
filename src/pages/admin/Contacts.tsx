@@ -44,11 +44,17 @@ export default function Contacts() {
 
   useEffect(() => { fetchSubmissions(); }, []);
 
-  async function updateStatus(id: string, status: string) {
-    await supabase.from("contact_submissions").update({ status }).eq("id", id);
-    await fetchSubmissions();
-    if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: status as Submission["status"] } : null);
+  function updateStatus(id: string, status: string) {
+    const typedStatus = status as Submission["status"];
+    setSubmissions(prev => prev.map(s => s.id === id ? { ...s, status: typedStatus } : s));
+    if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: typedStatus } : null);
     setToast({ message: `Marked as ${status}`, type: "success" });
+    supabase.from("contact_submissions").update({ status }).eq("id", id).then(({ error }) => {
+      if (error) {
+        fetchSubmissions();
+        setToast({ message: "Failed to update status", type: "error" });
+      }
+    });
   }
 
   const filtered = filter === "all" ? submissions : submissions.filter(s => s.status === filter);

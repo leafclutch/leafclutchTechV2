@@ -33,7 +33,7 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-function OpportunityForm({ opportunity, onClose, onSaved }: { opportunity?: Opportunity | null; onClose: () => void; onSaved: () => void }) {
+function OpportunityForm({ opportunity, onClose, onSaved }: { opportunity?: Opportunity | null; onClose: () => void; onSaved: (saved: Opportunity) => void }) {
   const [serverError, setServerError] = useState("");
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -64,11 +64,12 @@ function OpportunityForm({ opportunity, onClose, onSaved }: { opportunity?: Oppo
       if (opportunity) {
         const { error } = await supabase.from("opportunities").update(payload).eq("id", opportunity.id);
         if (error) throw error;
+        onSaved({ ...opportunity, ...payload } as Opportunity);
       } else {
-        const { error } = await supabase.from("opportunities").insert(payload);
+        const { data: ins, error } = await supabase.from("opportunities").insert(payload).select().single();
         if (error) throw error;
+        onSaved(ins as Opportunity);
       }
-      onSaved();
     } catch (e: unknown) { setServerError((e as { message: string }).message); }
   }
 
@@ -159,7 +160,6 @@ export default function Opportunities() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Opportunity | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Opportunity | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   async function fetchItems() {
@@ -174,24 +174,45 @@ export default function Opportunities() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    setDeleting(true);
-    await supabase.from("opportunities").delete().eq("id", deleteTarget.id);
-    await fetchItems();
-    setToast({ message: "Deleted", type: "success" });
+    const target = deleteTarget;
+    const snapshot = [...items];
+    setItems(prev => prev.filter(i => i.id !== target.id));
     setDeleteTarget(null);
-    setDeleting(false);
+    setToast({ message: "Deleted", type: "success" });
+    const { error } = await supabase.from("opportunities").delete().eq("id", target.id);
+    if (error) {
+      setItems(snapshot);
+      setToast({ message: "Delete failed: " + error.message, type: "error" });
+    }
   }
 
-  async function toggleVisibility(o: Opportunity) {
-    await supabase.from("opportunities").update({ is_visible: !o.is_visible }).eq("id", o.id);
-    await fetchItems();
+  function toggleVisibility(o: Opportunity) {
+    const next = !o.is_visible;
+    setItems(prev => prev.map(x => x.id === o.id ? { ...x, is_visible: next } : x));
+    supabase.from("opportunities").update({ is_visible: next }).eq("id", o.id).then(({ error }) => {
+      if (error) {
+        setItems(prev => prev.map(x => x.id === o.id ? { ...x, is_visible: o.is_visible } : x));
+        setToast({ message: "Failed to update visibility", type: "error" });
+      }
+    });
+  }
+
+  function handleSaved(saved: Opportunity) {
+    setFormOpen(false);
+    setEditTarget(null);
+    setItems(prev => {
+      const idx = prev.findIndex(i => i.id === saved.id);
+      if (idx >= 0) return prev.map(i => i.id === saved.id ? saved : i);
+      return [saved, ...prev];
+    });
+    setToast({ message: "Saved", type: "success" });
   }
 
   return (
     <div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      {deleteTarget && <ConfirmDialog title="Delete opportunity" message={`Delete "${deleteTarget.title}"?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />}
-      {formOpen && <OpportunityForm opportunity={editTarget} onClose={() => { setFormOpen(false); setEditTarget(null); }} onSaved={() => { setFormOpen(false); setEditTarget(null); fetchItems(); setToast({ message: "Saved", type: "success" }); }} />}
+      {deleteTarget && <ConfirmDialog title="Delete opportunity" message={`Delete "${deleteTarget.title}"?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={false} />}
+      {formOpen && <OpportunityForm opportunity={editTarget} onClose={() => { setFormOpen(false); setEditTarget(null); }} onSaved={handleSaved} />}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>

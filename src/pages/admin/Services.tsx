@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import Toast from "../../components/admin/Toast";
+import { cacheInvalidate } from "../../lib/cache";
 
 interface Service {
   id: string;
@@ -41,7 +42,7 @@ type FormData = z.infer<typeof schema>;
 function toArr(s: string) { return s.split("\n").map(x => x.trim()).filter(Boolean); }
 function toStr(a: string[]) { return a.join("\n"); }
 
-function ServiceForm({ service, onClose, onSaved }: { service?: Service | null; onClose: () => void; onSaved: () => void }) {
+function ServiceForm({ service, onClose, onSaved }: { service?: Service | null; onClose: () => void; onSaved: (saved: Service) => void }) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState(service?.photo_url ?? "");
   const [serverError, setServerError] = useState("");
@@ -69,6 +70,7 @@ function ServiceForm({ service, onClose, onSaved }: { service?: Service | null; 
         techs: toArr(data.techs), offerings: toArr(data.offerings), features: toArr(data.features),
       };
       let id = service?.id;
+      let photo_url = service?.photo_url ?? null;
       if (service) {
         const { error } = await supabase.from("services").update(payload).eq("id", service.id);
         if (error) throw error;
@@ -81,10 +83,10 @@ function ServiceForm({ service, onClose, onSaved }: { service?: Service | null; 
         const ext = photoFile.name.split(".").pop();
         const path = `service-${id}.${ext}`;
         await supabase.storage.from("assets").upload(path, photoFile, { upsert: true });
-        const url = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
-        await supabase.from("services").update({ photo_url: url }).eq("id", id);
+        photo_url = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
+        await supabase.from("services").update({ photo_url }).eq("id", id);
       }
-      onSaved();
+      onSaved({ id: id!, ...payload, photo_url, lottie_url: (service as unknown as { lottie_url?: string })?.lottie_url ?? "" } as Service);
     } catch (e: unknown) { setServerError((e as { message: string }).message); }
   }
 
@@ -178,37 +180,62 @@ export default function AdminServices() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Service | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-  async function fetch() {
+  async function fetchServices() {
     const { data } = await supabase.from("services").select("*").order("display_order");
     setServices(data ?? []);
     setLoading(false);
   }
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetchServices(); }, []);
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    setDeleting(true);
-    await supabase.from("services").delete().eq("id", deleteTarget.id);
-    await fetch();
-    setToast({ message: "Service deleted", type: "success" });
+    const target = deleteTarget;
+    const snapshot = [...services];
+    setServices(prev => prev.filter(s => s.id !== target.id));
     setDeleteTarget(null);
-    setDeleting(false);
+    setToast({ message: "Service deleted", type: "success" });
+    const { error } = await supabase.from("services").delete().eq("id", target.id);
+    if (error) {
+      setServices(snapshot);
+      setToast({ message: "Delete failed: " + error.message, type: "error" });
+    } else {
+      cacheInvalidate("services:all");
+    }
   }
 
-  async function toggleVisibility(s: Service) {
-    await supabase.from("services").update({ is_visible: !s.is_visible }).eq("id", s.id);
-    await fetch();
+  function toggleVisibility(s: Service) {
+    const next = !s.is_visible;
+    setServices(prev => prev.map(x => x.id === s.id ? { ...x, is_visible: next } : x));
+    supabase.from("services").update({ is_visible: next }).eq("id", s.id).then(({ error }) => {
+      if (error) {
+        setServices(prev => prev.map(x => x.id === s.id ? { ...x, is_visible: s.is_visible } : x));
+        setToast({ message: "Failed to update visibility", type: "error" });
+      } else {
+        cacheInvalidate("services:all");
+      }
+    });
+  }
+
+  function handleSaved(saved: Service) {
+    setFormOpen(false);
+    setEditTarget(null);
+    setServices(prev => {
+      const idx = prev.findIndex(s => s.id === saved.id);
+      if (idx >= 0) return prev.map(s => s.id === saved.id ? saved : s);
+      return [...prev, saved];
+    });
+    setToast({ message: "Saved", type: "success" });
+    cacheInvalidate("services:all");
   }
 
   return (
     <div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      {deleteTarget && <ConfirmDialog title="Delete service" message={`Delete "${deleteTarget.title}"?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />}
-      {formOpen && <ServiceForm service={editTarget} onClose={() => { setFormOpen(false); setEditTarget(null); }} onSaved={() => { setFormOpen(false); setEditTarget(null); fetch(); setToast({ message: "Saved", type: "success" }); }} />}
+      {deleteTarget && <ConfirmDialog title="Delete service" message={`Delete "${deleteTarget.title}"?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={false} />}
+      {formOpen && <ServiceForm service={editTarget} onClose={() => { setFormOpen(false); setEditTarget(null); }} onSaved={handleSaved} />}
 
       <div className="flex items-center justify-between mb-6">
         <div>

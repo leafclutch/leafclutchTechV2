@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import Toast from "../../components/admin/Toast";
+import { cacheInvalidate } from "../../lib/cache";
 
 interface Project {
   id: string;
@@ -28,7 +29,7 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-function ProjectForm({ project, onClose, onSaved }: { project?: Project | null; onClose: () => void; onSaved: () => void }) {
+function ProjectForm({ project, onClose, onSaved }: { project?: Project | null; onClose: () => void; onSaved: (saved: Project) => void }) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState(project?.photo_url ?? "");
   const [serverError, setServerError] = useState("");
@@ -52,6 +53,7 @@ function ProjectForm({ project, onClose, onSaved }: { project?: Project | null; 
         display_order: data.display_order, techs: data.techs.split("\n").map(t => t.trim()).filter(Boolean),
       };
       let id = project?.id;
+      let photo_url = project?.photo_url ?? null;
       if (project) {
         const { error } = await supabase.from("projects").update(payload).eq("id", project.id);
         if (error) throw error;
@@ -64,10 +66,10 @@ function ProjectForm({ project, onClose, onSaved }: { project?: Project | null; 
         const ext = photoFile.name.split(".").pop();
         const path = `project-${id}.${ext}`;
         await supabase.storage.from("assets").upload(path, photoFile, { upsert: true });
-        const url = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
-        await supabase.from("projects").update({ photo_url: url }).eq("id", id);
+        photo_url = supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
+        await supabase.from("projects").update({ photo_url }).eq("id", id);
       }
-      onSaved();
+      onSaved({ id: id!, ...payload, photo_url });
     } catch (e: unknown) { setServerError((e as { message: string }).message); }
   }
 
@@ -135,7 +137,6 @@ export default function Projects() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Project | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   async function fetchProjects() {
@@ -148,24 +149,50 @@ export default function Projects() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    setDeleting(true);
-    await supabase.from("projects").delete().eq("id", deleteTarget.id);
-    await fetchProjects();
-    setToast({ message: "Project deleted", type: "success" });
+    const target = deleteTarget;
+    const snapshot = [...projects];
+    setProjects(prev => prev.filter(p => p.id !== target.id));
     setDeleteTarget(null);
-    setDeleting(false);
+    setToast({ message: "Project deleted", type: "success" });
+    const { error } = await supabase.from("projects").delete().eq("id", target.id);
+    if (error) {
+      setProjects(snapshot);
+      setToast({ message: "Delete failed: " + error.message, type: "error" });
+    } else {
+      cacheInvalidate("projects:all");
+    }
   }
 
-  async function toggleVisibility(p: Project) {
-    await supabase.from("projects").update({ is_visible: !p.is_visible }).eq("id", p.id);
-    await fetchProjects();
+  function toggleVisibility(p: Project) {
+    const next = !p.is_visible;
+    setProjects(prev => prev.map(x => x.id === p.id ? { ...x, is_visible: next } : x));
+    supabase.from("projects").update({ is_visible: next }).eq("id", p.id).then(({ error }) => {
+      if (error) {
+        setProjects(prev => prev.map(x => x.id === p.id ? { ...x, is_visible: p.is_visible } : x));
+        setToast({ message: "Failed to update visibility", type: "error" });
+      } else {
+        cacheInvalidate("projects:all");
+      }
+    });
+  }
+
+  function handleSaved(saved: Project) {
+    setFormOpen(false);
+    setEditTarget(null);
+    setProjects(prev => {
+      const idx = prev.findIndex(p => p.id === saved.id);
+      if (idx >= 0) return prev.map(p => p.id === saved.id ? saved : p);
+      return [...prev, saved];
+    });
+    setToast({ message: "Saved", type: "success" });
+    cacheInvalidate("projects:all");
   }
 
   return (
     <div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      {deleteTarget && <ConfirmDialog title="Delete project" message={`Delete "${deleteTarget.title}"?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />}
-      {formOpen && <ProjectForm project={editTarget} onClose={() => { setFormOpen(false); setEditTarget(null); }} onSaved={() => { setFormOpen(false); setEditTarget(null); fetchProjects(); setToast({ message: "Saved", type: "success" }); }} />}
+      {deleteTarget && <ConfirmDialog title="Delete project" message={`Delete "${deleteTarget.title}"?`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={false} />}
+      {formOpen && <ProjectForm project={editTarget} onClose={() => { setFormOpen(false); setEditTarget(null); }} onSaved={handleSaved} />}
 
       <div className="flex items-center justify-between mb-6">
         <div>

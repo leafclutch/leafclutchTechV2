@@ -42,7 +42,7 @@ interface Props {
   member?: MemberRow | null;
   defaultRole: "TEAM" | "INTERN";
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (saved: MemberRow) => void;
 }
 
 export default function MemberForm({ member, defaultRole, onClose, onSaved }: Props) {
@@ -114,19 +114,16 @@ export default function MemberForm({ member, defaultRole, onClose, onSaved }: Pr
         const photo_url = await uploadPhoto(member.id);
         const { error } = await supabase.from("members").update({ ...payload, photo_url }).eq("id", member.id);
         if (error) throw new Error(error.message);
+        onSaved({ ...member, ...payload, photo_url });
       } else {
         const { data: inserted, error } = await supabase.from("members").insert(payload).select().single();
         if (error) throw new Error(error.message);
-        await uploadPhoto(inserted.id);
-        if (photoFile) {
-          const ext = photoFile.name.split(".").pop();
-          const path = `${inserted.id}.${ext}`;
-          const photo_url = supabase.storage.from("profile-photos").getPublicUrl(path).data.publicUrl;
+        const photo_url = await uploadPhoto(inserted.id);
+        if (photo_url) {
           await supabase.from("members").update({ photo_url }).eq("id", inserted.id);
         }
+        onSaved({ ...inserted, photo_url } as MemberRow);
       }
-
-      onSaved();
     } catch (e: unknown) {
       setServerError((e as Error).message);
     } finally {
