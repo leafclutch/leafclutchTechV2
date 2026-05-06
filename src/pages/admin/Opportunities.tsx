@@ -163,9 +163,12 @@ export default function Opportunities() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   async function fetchItems() {
-    const { data } = await supabase.from("opportunities").select("*").order("created_at", { ascending: false });
-    setItems((data as Opportunity[]) ?? []);
-    setLoading(false);
+    try {
+      const { data } = await supabase.from("opportunities").select("*").order("created_at", { ascending: false });
+      setItems((data as Opportunity[]) ?? []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchItems(); }, []);

@@ -34,12 +34,15 @@ export default function Contacts() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   async function fetchSubmissions() {
-    const { data } = await supabase
-      .from("contact_submissions")
-      .select("*")
-      .order("submitted_at", { ascending: false });
-    setSubmissions((data as Submission[]) ?? []);
-    setLoading(false);
+    try {
+      const { data } = await supabase
+        .from("contact_submissions")
+        .select("*")
+        .order("submitted_at", { ascending: false });
+      setSubmissions((data as Submission[]) ?? []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchSubmissions(); }, []);

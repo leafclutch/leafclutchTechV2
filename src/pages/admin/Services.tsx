@@ -183,9 +183,12 @@ export default function AdminServices() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   async function fetchServices() {
-    const { data } = await supabase.from("services").select("*").order("display_order");
-    setServices(data ?? []);
-    setLoading(false);
+    try {
+      const { data } = await supabase.from("services").select("*").order("display_order");
+      setServices(data ?? []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchServices(); }, []);

@@ -121,9 +121,12 @@ export default function Mentors() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   async function fetchMentors() {
-    const { data } = await supabase.from("mentors").select("*").order("created_at", { ascending: false });
-    setMentors(data ?? []);
-    setLoading(false);
+    try {
+      const { data } = await supabase.from("mentors").select("*").order("created_at", { ascending: false });
+      setMentors(data ?? []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchMentors(); }, []);

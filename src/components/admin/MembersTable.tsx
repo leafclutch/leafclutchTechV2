@@ -24,13 +24,16 @@ export default function MembersTable({ role, title }: Props) {
 
   async function fetchMembers() {
     setLoading(true);
-    const { data } = await supabase
-      .from("members")
-      .select("*")
-      .eq("role", role)
-      .order("created_at", { ascending: false });
-    setMembers((data as MemberRow[]) ?? []);
-    setLoading(false);
+    try {
+      const { data } = await supabase
+        .from("members")
+        .select("*")
+        .eq("role", role)
+        .order("created_at", { ascending: false });
+      setMembers((data as MemberRow[]) ?? []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchMembers(); }, [role]);

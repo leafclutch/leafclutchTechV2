@@ -140,9 +140,12 @@ export default function Projects() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   async function fetchProjects() {
-    const { data } = await supabase.from("projects").select("*").order("display_order");
-    setProjects(data ?? []);
-    setLoading(false);
+    try {
+      const { data } = await supabase.from("projects").select("*").order("display_order");
+      setProjects(data ?? []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchProjects(); }, []);

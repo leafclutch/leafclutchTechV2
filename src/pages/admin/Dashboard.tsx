@@ -31,28 +31,30 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function fetchStats() {
-      const [team, interns, mentors, services, projects, opportunities, courses, contacts] = await Promise.all([
-        supabase.from("members").select("id", { count: "exact", head: true }).eq("role", "TEAM"),
-        supabase.from("members").select("id", { count: "exact", head: true }).eq("role", "INTERN"),
-        supabase.from("mentors").select("id", { count: "exact", head: true }),
-        supabase.from("services").select("id", { count: "exact", head: true }),
-        supabase.from("projects").select("id", { count: "exact", head: true }),
-        supabase.from("opportunities").select("id", { count: "exact", head: true }),
-        supabase.from("courses").select("id", { count: "exact", head: true }),
-        supabase.from("contact_submissions").select("id", { count: "exact", head: true }).eq("status", "new"),
-      ]);
-
-      setStats({
-        team: team.count ?? 0,
-        interns: interns.count ?? 0,
-        mentors: mentors.count ?? 0,
-        services: services.count ?? 0,
-        projects: projects.count ?? 0,
-        opportunities: opportunities.count ?? 0,
-        courses: courses.count ?? 0,
-        contacts: contacts.count ?? 0,
-      });
-      setLoading(false);
+      try {
+        const [team, interns, mentors, services, projects, opportunities, courses, contacts] = await Promise.all([
+          supabase.from("members").select("id", { count: "exact", head: true }).eq("role", "TEAM"),
+          supabase.from("members").select("id", { count: "exact", head: true }).eq("role", "INTERN"),
+          supabase.from("mentors").select("id", { count: "exact", head: true }),
+          supabase.from("services").select("id", { count: "exact", head: true }),
+          supabase.from("projects").select("id", { count: "exact", head: true }),
+          supabase.from("opportunities").select("id", { count: "exact", head: true }),
+          supabase.from("courses").select("id", { count: "exact", head: true }),
+          supabase.from("contact_submissions").select("id", { count: "exact", head: true }).eq("status", "new"),
+        ]);
+        setStats({
+          team: team.count ?? 0,
+          interns: interns.count ?? 0,
+          mentors: mentors.count ?? 0,
+          services: services.count ?? 0,
+          projects: projects.count ?? 0,
+          opportunities: opportunities.count ?? 0,
+          courses: courses.count ?? 0,
+          contacts: contacts.count ?? 0,
+        });
+      } finally {
+        setLoading(false);
+      }
     }
     fetchStats();
   }, []);

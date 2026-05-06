@@ -206,9 +206,12 @@ export default function AdminCourses() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   async function fetchCourses() {
-    const { data } = await supabase.from("courses").select("*").order("display_order");
-    setCourses((data as Course[]) ?? []);
-    setLoading(false);
+    try {
+      const { data } = await supabase.from("courses").select("*").order("display_order");
+      setCourses((data as Course[]) ?? []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { fetchCourses(); }, []);
