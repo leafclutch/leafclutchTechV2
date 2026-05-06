@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import { cacheGet, cacheSet, preloadImages } from "../lib/cache";
+import { cacheGet, cacheGetStale, cacheSet, preloadImages } from "../lib/cache";
 
 export interface MemberResponse {
   id: string;
@@ -20,36 +20,52 @@ const PUBLIC_FIELDS = "id, name, photo_url, position, role, start_date, end_date
 
 export const memberApi = {
   getTeams: async (): Promise<MemberResponse[]> => {
-    const cached = cacheGet<MemberResponse[]>("members:teams");
-    if (cached) return cached;
+    const fresh = cacheGet<MemberResponse[]>("members:teams");
+    const stale = fresh ?? cacheGetStale<MemberResponse[]>("members:teams");
 
-    const { data, error } = await supabase
-      .from("members")
-      .select(PUBLIC_FIELDS)
-      .eq("role", "TEAM")
-      .eq("is_visible", true)
-      .order("created_at", { ascending: true });
-    if (error) { console.error("Teams fetch error:", error); return []; }
-    const result = (data as MemberResponse[]) ?? [];
-    cacheSet("members:teams", result);
-    preloadImages(result.map((m) => m.photo_url));
-    return result;
+    const fetchFresh = async () => {
+      const { data, error } = await supabase
+        .from("members")
+        .select(PUBLIC_FIELDS)
+        .eq("role", "TEAM")
+        .eq("is_visible", true)
+        .order("created_at", { ascending: true });
+      if (error) { console.error("Teams fetch error:", error); return stale ?? []; }
+      const result = (data as MemberResponse[]) ?? [];
+      cacheSet("members:teams", result);
+      preloadImages(result.map((m) => m.photo_url));
+      return result;
+    };
+
+    if (stale) {
+      if (!fresh) fetchFresh(); // background refresh when stale
+      return stale;
+    }
+    return fetchFresh();
   },
 
   getInterns: async (): Promise<MemberResponse[]> => {
-    const cached = cacheGet<MemberResponse[]>("members:interns");
-    if (cached) return cached;
+    const fresh = cacheGet<MemberResponse[]>("members:interns");
+    const stale = fresh ?? cacheGetStale<MemberResponse[]>("members:interns");
 
-    const { data, error } = await supabase
-      .from("members")
-      .select(PUBLIC_FIELDS)
-      .eq("role", "INTERN")
-      .eq("is_visible", true)
-      .order("created_at", { ascending: true });
-    if (error) { console.error("Interns fetch error:", error); return []; }
-    const result = (data as MemberResponse[]) ?? [];
-    cacheSet("members:interns", result);
-    preloadImages(result.map((m) => m.photo_url));
-    return result;
+    const fetchFresh = async () => {
+      const { data, error } = await supabase
+        .from("members")
+        .select(PUBLIC_FIELDS)
+        .eq("role", "INTERN")
+        .eq("is_visible", true)
+        .order("created_at", { ascending: true });
+      if (error) { console.error("Interns fetch error:", error); return stale ?? []; }
+      const result = (data as MemberResponse[]) ?? [];
+      cacheSet("members:interns", result);
+      preloadImages(result.map((m) => m.photo_url));
+      return result;
+    };
+
+    if (stale) {
+      if (!fresh) fetchFresh(); // background refresh when stale
+      return stale;
+    }
+    return fetchFresh();
   },
 };
