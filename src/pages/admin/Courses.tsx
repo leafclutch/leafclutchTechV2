@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import Toast from "../../components/admin/Toast";
 import { cacheInvalidate } from "../../lib/cache";
+import { onTableChange } from "../../lib/realtime";
 
 interface Course {
   id: string;
@@ -217,21 +218,17 @@ export default function AdminCourses() {
   useEffect(() => { fetchCourses(); }, []);
 
   useEffect(() => {
-    const channel = supabase
-      .channel('rt-courses')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, payload => {
-        if (payload.eventType === 'INSERT') {
-          const c = payload.new as Course;
-          setCourses(prev => prev.some(x => x.id === c.id) ? prev : [...prev, c]);
-        } else if (payload.eventType === 'UPDATE') {
-          setCourses(prev => prev.map(x => x.id === payload.new.id ? payload.new as Course : x));
-        } else if (payload.eventType === 'DELETE') {
-          const id = (payload.old as { id: string }).id;
-          setCourses(prev => prev.filter(x => x.id !== id));
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return onTableChange('courses', payload => {
+      if (payload.eventType === 'INSERT') {
+        const c = payload.new as Course;
+        setCourses(prev => prev.some(x => x.id === c.id) ? prev : [...prev, c]);
+      } else if (payload.eventType === 'UPDATE') {
+        setCourses(prev => prev.map(x => x.id === payload.new.id ? payload.new as Course : x));
+      } else if (payload.eventType === 'DELETE') {
+        const id = (payload.old as { id: string }).id;
+        setCourses(prev => prev.filter(x => x.id !== id));
+      }
+    });
   }, []);
 
   async function handleDelete() {

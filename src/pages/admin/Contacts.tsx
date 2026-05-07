@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { onTableChange } from "../../lib/realtime";
 import { Mail, Clock, CheckCircle, Reply, Archive } from "lucide-react";
 import Toast from "../../components/admin/Toast";
 
@@ -48,21 +49,17 @@ export default function Contacts() {
   useEffect(() => { fetchSubmissions(); }, []);
 
   useEffect(() => {
-    const channel = supabase
-      .channel('rt-contacts')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_submissions' }, payload => {
-        if (payload.eventType === 'INSERT') {
-          const s = payload.new as Submission;
-          setSubmissions(prev => prev.some(x => x.id === s.id) ? prev : [s, ...prev]);
-        } else if (payload.eventType === 'UPDATE') {
-          setSubmissions(prev => prev.map(x => x.id === payload.new.id ? payload.new as Submission : x));
-        } else if (payload.eventType === 'DELETE') {
-          const id = (payload.old as { id: string }).id;
-          setSubmissions(prev => prev.filter(x => x.id !== id));
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return onTableChange('contact_submissions', payload => {
+      if (payload.eventType === 'INSERT') {
+        const s = payload.new as Submission;
+        setSubmissions(prev => prev.some(x => x.id === s.id) ? prev : [s, ...prev]);
+      } else if (payload.eventType === 'UPDATE') {
+        setSubmissions(prev => prev.map(x => x.id === payload.new.id ? payload.new as Submission : x));
+      } else if (payload.eventType === 'DELETE') {
+        const id = (payload.old as { id: string }).id;
+        setSubmissions(prev => prev.filter(x => x.id !== id));
+      }
+    });
   }, []);
 
   function updateStatus(id: string, status: string) {

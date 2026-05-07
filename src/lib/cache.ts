@@ -52,6 +52,16 @@ export function cacheInvalidate(key: string): void {
   } catch {}
 }
 
+const inflight = new Map<string, Promise<unknown>>();
+
+export function dedupe<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const existing = inflight.get(key);
+  if (existing) return existing as Promise<T>;
+  const promise = fn().finally(() => inflight.delete(key));
+  inflight.set(key, promise);
+  return promise;
+}
+
 export function preloadImages(urls: (string | null | undefined)[]): void {
   urls.forEach((url) => {
     if (!url || url === "string") return;

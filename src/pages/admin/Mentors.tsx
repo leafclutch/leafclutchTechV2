@@ -8,6 +8,7 @@ import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import Toast from "../../components/admin/Toast";
 import { useRef } from "react";
 import { cacheInvalidate } from "../../lib/cache";
+import { onTableChange } from "../../lib/realtime";
 
 interface Mentor {
   id: string;
@@ -132,21 +133,17 @@ export default function Mentors() {
   useEffect(() => { fetchMentors(); }, []);
 
   useEffect(() => {
-    const channel = supabase
-      .channel('rt-mentors')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'mentors' }, payload => {
-        if (payload.eventType === 'INSERT') {
-          const m = payload.new as Mentor;
-          setMentors(prev => prev.some(x => x.id === m.id) ? prev : [...prev, m]);
-        } else if (payload.eventType === 'UPDATE') {
-          setMentors(prev => prev.map(x => x.id === payload.new.id ? payload.new as Mentor : x));
-        } else if (payload.eventType === 'DELETE') {
-          const id = (payload.old as { id: string }).id;
-          setMentors(prev => prev.filter(x => x.id !== id));
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return onTableChange('mentors', payload => {
+      if (payload.eventType === 'INSERT') {
+        const m = payload.new as Mentor;
+        setMentors(prev => prev.some(x => x.id === m.id) ? prev : [...prev, m]);
+      } else if (payload.eventType === 'UPDATE') {
+        setMentors(prev => prev.map(x => x.id === payload.new.id ? payload.new as Mentor : x));
+      } else if (payload.eventType === 'DELETE') {
+        const id = (payload.old as { id: string }).id;
+        setMentors(prev => prev.filter(x => x.id !== id));
+      }
+    });
   }, []);
 
   async function handleDelete() {

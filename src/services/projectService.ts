@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import { cacheGet, cacheSet, preloadImages } from "../lib/cache";
+import { cacheGet, cacheSet, dedupe, preloadImages } from "../lib/cache";
 
 export interface ProjectFeedback {
   id: string;
@@ -25,20 +25,21 @@ export const projectApi = {
   getAll: async (): Promise<ProjectResponse[]> => {
     const cached = cacheGet<ProjectResponse[]>("projects:all");
     if (cached) return cached;
-
-    const { data, error } = await supabase
-      .from("projects")
-      .select("*, project_feedbacks(*)")
-      .eq("is_visible", true)
-      .order("display_order", { ascending: true });
-    if (error) { console.error("Projects fetch error:", error); return []; }
-    const result = (data ?? []).map((p: Record<string, unknown>) => ({
-      ...p,
-      feedbacks: (p.project_feedbacks as ProjectFeedback[]) ?? [],
-    })) as ProjectResponse[];
-    cacheSet("projects:all", result);
-    preloadImages(result.map((p) => p.photo_url));
-    return result;
+    return dedupe("projects:all", async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*, project_feedbacks(*)")
+        .eq("is_visible", true)
+        .order("display_order", { ascending: true });
+      if (error) { console.error("Projects fetch error:", error); return []; }
+      const result = (data ?? []).map((p: Record<string, unknown>) => ({
+        ...p,
+        feedbacks: (p.project_feedbacks as ProjectFeedback[]) ?? [],
+      })) as ProjectResponse[];
+      cacheSet("projects:all", result);
+      preloadImages(result.map((p) => p.photo_url));
+      return result;
+    });
   },
 
   getById: async (id: string): Promise<ProjectResponse | null> => {

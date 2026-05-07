@@ -8,8 +8,8 @@ import {
   type MemberResponse,
 } from "../../../services/memberService";
 import TeamMembersSkeleton from "./TeamMemberSkeleton";
-import { supabase } from "../../../lib/supabase";
 import { cacheInvalidate } from "../../../lib/cache";
+import { onTableChange } from "../../../lib/realtime";
 
 // Fade-in variants - Keeping your exact animations
 const fadeIn: Variants = {
@@ -52,17 +52,13 @@ const AboutTeam: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const channel = supabase
-      .channel('rt-public-members')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => {
-        cacheInvalidate('members:teams');
-        memberApi.getTeams().then(data => {
-          const sorted = [...data].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          setMembers(sorted.filter(m => m.is_visible));
-        });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return onTableChange('members', () => {
+      cacheInvalidate('members:teams');
+      memberApi.getTeams().then(data => {
+        const sorted = [...data].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        setMembers(sorted.filter(m => m.is_visible));
+      });
+    });
   }, []);
 
   // if (loading) {

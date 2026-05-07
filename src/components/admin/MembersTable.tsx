@@ -5,6 +5,7 @@ import MemberForm, { type MemberRow } from "./MemberForm";
 import ConfirmDialog from "./ConfirmDialog";
 import Toast from "./Toast";
 import { cacheInvalidate } from "../../lib/cache";
+import { onTableChange } from "../../lib/realtime";
 
 interface Props {
   role: "TEAM" | "INTERN";
@@ -39,22 +40,18 @@ export default function MembersTable({ role, title }: Props) {
   useEffect(() => { fetchMembers(); }, [role]);
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`rt-members-${role}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, payload => {
-        if (payload.eventType === 'INSERT') {
-          const m = payload.new as MemberRow;
-          if (m.role === role) setMembers(prev => prev.some(x => x.id === m.id) ? prev : [m, ...prev]);
-        } else if (payload.eventType === 'UPDATE') {
-          const m = payload.new as MemberRow;
-          setMembers(prev => prev.map(x => x.id === m.id ? m : x));
-        } else if (payload.eventType === 'DELETE') {
-          const id = (payload.old as { id: string }).id;
-          setMembers(prev => prev.filter(x => x.id !== id));
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return onTableChange('members', payload => {
+      if (payload.eventType === 'INSERT') {
+        const m = payload.new as MemberRow;
+        if (m.role === role) setMembers(prev => prev.some(x => x.id === m.id) ? prev : [m, ...prev]);
+      } else if (payload.eventType === 'UPDATE') {
+        const m = payload.new as MemberRow;
+        setMembers(prev => prev.map(x => x.id === m.id ? m : x));
+      } else if (payload.eventType === 'DELETE') {
+        const id = (payload.old as { id: string }).id;
+        setMembers(prev => prev.filter(x => x.id !== id));
+      }
+    });
   }, [role]);
 
   async function handleDelete() {

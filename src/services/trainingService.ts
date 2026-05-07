@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import { cacheGet, cacheSet, preloadImages } from "../lib/cache";
+import { cacheGet, cacheSet, dedupe, preloadImages } from "../lib/cache";
 
 export interface Mentor {
   name: string;
@@ -24,17 +24,18 @@ export const trainingApi = {
   getAll: async (): Promise<TrainingResponse[]> => {
     const cached = cacheGet<TrainingResponse[]>("trainings:all");
     if (cached) return cached;
-
-    const { data, error } = await supabase
-      .from("courses")
-      .select("id, title, description, photo_url, base_price, effective_price, enroll_from_price, benefits, created_at, updated_at")
-      .eq("is_visible", true)
-      .order("display_order", { ascending: true });
-    if (error) { console.error("Trainings fetch error:", error); return []; }
-    const result = (data ?? []).map(c => ({ ...c, mentors: [] })) as TrainingResponse[];
-    cacheSet("trainings:all", result);
-    preloadImages(result.map((t) => t.photo_url));
-    return result;
+    return dedupe("trainings:all", async () => {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("id, title, description, photo_url, base_price, effective_price, enroll_from_price, benefits, created_at, updated_at")
+        .eq("is_visible", true)
+        .order("display_order", { ascending: true });
+      if (error) { console.error("Trainings fetch error:", error); return []; }
+      const result = (data ?? []).map(c => ({ ...c, mentors: [] })) as TrainingResponse[];
+      cacheSet("trainings:all", result);
+      preloadImages(result.map((t) => t.photo_url));
+      return result;
+    });
   },
 
   getById: async (id: string): Promise<TrainingResponse | null> => {
